@@ -1,71 +1,70 @@
-pub type u1 = u8;
-pub type u2 = u16;
-pub type u4 = u32;
-
-pub type ConstantPool = Vec<ConstantPoolType>;
+pub type U1 = u8;
+pub type U2 = u16;
+pub type U4 = u32;
 
 #[derive(Debug)]
 pub struct ClassFile {
-    magic: u4,
-    version: Version,
-    constant_pool: ConstantPool,
+    pub magic: U4,
+    pub version: Version,
+    pub constant_pool: Vec<ConstantPoolType>,
+    pub fields: Vec<FieldInfo>,
 }
 
 #[derive(Debug)]
 pub struct Version {
-    minor: u2,
-    major: u2,
+    pub minor: U2,
+    pub major: U2,
 }
 
 #[derive(Debug, Clone)]
 pub enum ConstantPoolType {
     Class {
-        name_index: u2,
+        name_index: U2,
     },
     Fieldref {
-        class_index: u2,
-        name_and_type_index: u2,
+        class_index: U2,
+        name_and_type_index: U2,
     },
     Methodref {
-        class_index: u2,
-        name_and_type_index: u2,
+        class_index: U2,
+        name_and_type_index: U2,
     },
     InterfaceMethodref {
-        class_index: u2,
-        name_and_type_index: u2,
+        class_index: U2,
+        name_and_type_index: U2,
     },
     String {
-        string_index: u2,
+        string_index: U2,
     },
     Integer {
-        bytes: [u1; 4],
+        bytes: [U1; 4],
     },
     Float {
-        bytes: [u1; 4],
+        bytes: [U1; 4],
     },
     Long {
-        val: [u1; 8],
+        val: [U1; 8],
     },
     Double {
-        val: [u1; 8],
+        val: [U1; 8],
     },
     NameAndType {
-        name_index: u2,
-        descriptor_index: u2,
+        name_index: U2,
+        descriptor_index: U2,
     },
     Utf8 {
-        bytes: Vec<u1>,
+        bytes: Vec<U1>,
     },
     MethodHandle {
-        reference_kind: u1,
-        reference_index: u2,
+        reference_kind: U1,
+        reference_index: U2,
     },
     MethodType {
-        descriptor_index: u2,
+        descriptor_index: U2,
     },
     InvokeDynamic {
-        bootstrap_method_attr_index: u2,
-        name_and_type_index: u2,
+        bootstrap_method_attr_index: U2,
+        name_and_type_index: U2,
     },
 }
 
@@ -108,4 +107,111 @@ impl From<u8> for ConstantPoolTag {
             _ => Self::Unknown,
         }
     }
+}
+
+#[derive(Debug)]
+pub struct FieldInfo {
+    pub access_flags: U2,
+    pub name_index: U2,
+    pub descriptor_index: U2,
+    pub attributes: Vec<Attribute>,
+}
+
+#[derive(Debug)]
+pub enum AttributeType {
+    ConstantValue,
+    Code,
+    StackMapTable,
+    Exceptions,
+    InnerClasses,
+    EnclosingMethod,
+    Synthetic,
+    Signature,
+    SourceFile,
+    SourceDebugExtension,
+    LineNumberTable,
+    LocalVariableTable,
+    LocalVariableTypeTable,
+    Deprecated,
+    RuntimeVisibleAnnotations,
+    RuntimeInvisibleAnnotations,
+    RuntimeVisibleParameterAnnotations,
+    RuntimeInvisibleParameterAnnotations,
+    AnnotationDefault,
+    BootstrapMethods,
+}
+
+#[derive(Debug)]
+pub enum Attribute {
+    ConstantValue {
+        constant_value_index: U2,
+    },
+    Code {
+        max_stack: U2,
+        max_locals: U2,
+        code: Vec<U1>,
+        exception_table: Vec<ExceptionHandler>,
+        attributes: Vec<AttributeType>,
+    },
+    StackMapTable {
+        entries: Vec<StackMapFrame>,
+    },
+}
+
+#[derive(Debug)]
+pub struct ExceptionHandler {
+    pub start_pc: U2,
+    pub end_pc: U2,
+    pub handler_pc: U2,
+    pub catch_type: U2,
+}
+
+#[derive(Debug)]
+pub enum StackMapFrame {
+    Same {
+        tag: U1,
+        offset_delta: U2,
+    },
+    SameLocals1StackItem {
+        tag: U1,
+        offset_delta: U2,
+        stack: [VerificationTypeInfo; 1],
+    },
+    SameLocalsStackItemExtended {
+        tag: U1,
+        offset_delta: U2,
+        stack: [VerificationTypeInfo; 1],
+    },
+    Chop {
+        tag: U1,
+        offset_delta: U2,
+    },
+    SameExtended {
+        tag: U1,
+        offset_delta: U2,
+    },
+    Append {
+        tag: U1,
+        offset_delta: U2,
+        locals: Vec<VerificationTypeInfo>,
+    },
+    Full {
+        tag: U1,
+        offset_delta: U2,
+        locals: Vec<VerificationTypeInfo>,
+        stack: Vec<VerificationTypeInfo>,
+    },
+}
+
+#[derive(Debug)]
+pub enum VerificationTypeInfo {
+    TopVariable,
+    IntegerVariable,
+    FloatVariable,
+    LongVariable,
+    DoubleVariable,
+    NullVariable,
+    UninitializedThisVariable,
+    ObjectVariable { cpool_index: U2 },
+    UninitializedVariable { offset: U2 },
 }
