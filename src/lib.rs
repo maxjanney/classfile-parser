@@ -156,6 +156,7 @@ pub enum Attribute {
     StackMapTable {
         entries: Vec<StackMapFrame>,
     },
+    // TODO: Rest of attributes
 }
 
 #[derive(Debug)]
