@@ -125,7 +125,7 @@ pub struct FieldInfo {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum AttributeType {
+pub enum AttributeTag {
     ConstantValue,
     Code,
     StackMapTable,
@@ -146,6 +146,35 @@ pub enum AttributeType {
     RuntimeInvisibleParameterAnnotations,
     AnnotationDefault,
     BootstrapMethods,
+    Unknown,
+}
+
+impl From<&[u8]> for AttributeTag {
+    fn from(bytes: &[u8]) -> Self {
+        match bytes {
+            b"ConstantValue" => Self::ConstantValue,
+            b"Code" => Self::Code,
+            b"StackMapTable" => Self::StackMapTable,
+            b"Exceptions" => Self::Exceptions,
+            b"InnerClasses" => Self::InnerClasses,
+            b"EnclosingMethod" => Self::EnclosingMethod,
+            b"Synthetic" => Self::Synthetic,
+            b"Signature" => Self::Signature,
+            b"SourceFile" => Self::SourceFile,
+            b"SourceDebugExtension" => Self::SourceDebugExtension,
+            b"LineNumberTable" => Self::LineNumberTable,
+            b"LocalVariableTable" => Self::LocalVariableTable,
+            b"LocalVariableTypeTable" => Self::LocalVariableTypeTable,
+            b"Deprecated" => Self::Deprecated,
+            b"RuntimeVisibleAnnotations" => Self::RuntimeVisibleAnnotations,
+            b"RuntimeInvisibleAnnotations" => Self::RuntimeInvisibleAnnotations,
+            b"RuntimeVisibleParameterAnnotations" => Self::RuntimeVisibleParameterAnnotations,
+            b"RuntimeInvisibleParameterAnnotations" => Self::RuntimeInvisibleParameterAnnotations,
+            b"AnnotationDefault" => Self::AnnotationDefault,
+            b"BootstrapMethods" => Self::BootstrapMethods,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -158,7 +187,7 @@ pub enum Attribute {
         max_locals: U2,
         code: Vec<U1>,
         exception_table: Vec<ExceptionHandler>,
-        attributes: Vec<AttributeType>,
+        attributes: Vec<AttributeTag>,
     },
     StackMapTable {
         entries: Vec<StackMapFrame>,
