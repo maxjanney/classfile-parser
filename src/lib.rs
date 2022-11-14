@@ -1,4 +1,4 @@
-// todo: split this up into modules
+pub mod parser;
 
 pub type U1 = u8;
 pub type U2 = u16;
@@ -6,10 +6,15 @@ pub type U4 = u32;
 
 #[derive(Debug)]
 pub struct ClassFile {
-    pub magic: U4,
     pub version: Version,
     pub constant_pool: Vec<ConstantPoolType>,
+    pub access_flags: U2,
+    pub this_class: U2,
+    pub super_class: U2,
+    pub interfaces: Vec<U2>,
     pub fields: Vec<FieldInfo>,
+    pub methods: Vec<MethodInfo>,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Debug)]
@@ -365,4 +370,12 @@ pub enum ElementValue {
 pub struct BootstrapMethod {
     pub bootstrap_method_ref: U2,
     pub bootstrap_arguments: Vec<U2>,
+}
+
+#[derive(Debug)]
+pub struct MethodInfo {
+    pub access_flags: U2,
+    pub name_index: U2,
+    pub descriptor_index: U2,
+    pub attributes: Vec<Attribute>,
 }
