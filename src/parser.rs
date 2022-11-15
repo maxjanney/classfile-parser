@@ -5,7 +5,7 @@ use nom::{
     IResult,
 };
 
-use crate::{ClassFile, ConstantPoolTag, ConstantPoolType, Version};
+use crate::{Attribute, ClassFile, ConstantPoolTag, ConstantPoolType, FieldInfo, Version};
 
 pub fn class_file(input: &[u8]) -> IResult<&[u8], ClassFile> {
     // magic
@@ -14,6 +14,16 @@ pub fn class_file(input: &[u8]) -> IResult<&[u8], ClassFile> {
     let (input, version) = version(input)?;
     // constant pool
     let (input, constant_pool) = constant_pool(input)?;
+    // access flags
+    let (input, access_flags) = be_u16(input)?;
+    // this class
+    let (input, this_class) = be_u16(input)?;
+    // super class
+    let (input, super_class) = be_u16(input)?;
+    // interfaces
+    let (input, interfaces) = interfaces(input)?;
+    // fields
+    let (input, fields) = fields(input, &constant_pool)?;
     todo!()
 }
 
@@ -152,3 +162,36 @@ fn take_n<const N: usize>(input: &[u8]) -> IResult<&[u8], [u8; N]> {
     let (input, bytes) = take(N)(input)?;
     Ok((input, bytes.try_into().expect("nom error")))
 }
+
+fn interfaces(input: &[u8]) -> IResult<&[u8], Vec<u16>> {
+    let (input, interface_count) = be_u16(input)?;
+    let (input, interfaces) = count(be_u16, interface_count as usize)(input)?;
+    Ok((input, interfaces))
+}
+
+fn fields<'a>(
+    input: &'a [u8],
+    constant_pool: &[ConstantPoolType],
+) -> IResult<&'a [u8], Vec<FieldInfo>> {
+    let (input, fields_count) = be_u16(input)?;
+    let (input, fields) = count(call(field_info, constant_pool), fields_count as usize)(input)?;
+    Ok((input, fields))
+}
+
+fn field_info<'a>(
+    input: &'a [u8],
+    constant_pool: &[ConstantPoolType],
+) -> IResult<&'a [u8], FieldInfo> {
+    let (input, access_flags) = be_u16(input)?;
+    let (input, name_index) = be_u16(input)?;
+    let (input, descriptor_index) = be_u16(input)?;
+    let (input, attributes) = attributes(input)?;
+}
+
+fn attributes(input: &[u8]) -> IResult<&[u8], Vec<Attribute>> {
+    let (input, attributes_count) = be_u16(input)?;
+    let (input, attributes) = count(call(), attributes_count as usize)(input)?;
+    Ok((input, attributes))
+}
+
+fn attribute(input: &[u8]) -> IResult<&[u8], Attribute> {}
