@@ -6,9 +6,10 @@ use nom::{
 };
 
 use crate::{
-    constant_pool::get_class_name,
-    AttributeTag, ExceptionHandler, StackMapFrame, VerificationTypeInfo,
-    {Attribute, ClassFile, ConstantPoolTag, ConstantPoolType, FieldInfo, Version},
+    constant_pool::{get_class_name, ConstantPoolTag},
+    Annotation, AttributeTag, ElementValuePair, ExceptionHandler, InnerClass, LineNumber,
+    LocalVariable, StackMapFrame, VerificationTypeInfo,
+    {Attribute, ClassFile, ConstantPoolType, FieldInfo, Version},
 };
 
 pub fn class_file(input: &[u8]) -> IResult<&[u8], ClassFile> {
@@ -216,7 +217,7 @@ fn attribute<'a>(
     constant_pool: &[ConstantPoolType],
 ) -> IResult<&'a [u8], Attribute> {
     let (input, attr_name_index) = be_u16(input)?;
-    let (input, _) = be_u32(input)?;
+    let (input, attribute_length) = be_u32(input)?;
     let name_bytes = get_class_name(constant_pool, attr_name_index as usize);
     Ok(match AttributeTag::from(name_bytes) {
         AttributeTag::ConstantValue => {
@@ -250,18 +251,85 @@ fn attribute<'a>(
             let (input, entries) = stack_map_table(input)?;
             (input, Attribute::StackMapTable { entries })
         }
-        AttributeTag::Exceptions => {}
-        AttributeTag::InnerClasses => {}
-        AttributeTag::EnclosingMethod => {}
-        AttributeTag::Synthetic => {}
-        AttributeTag::Signature => {}
-        AttributeTag::SourceFile => {}
-        AttributeTag::SourceDebugExtension => {}
-        AttributeTag::LineNumberTable => {}
-        AttributeTag::LocalVariableTable => {}
-        AttributeTag::LocalVariableTypeTable => {}
-        AttributeTag::Deprecated => {}
-        AttributeTag::RuntimeVisibleAnnotations => {}
+        AttributeTag::Exceptions => {
+            let (input, num_exceptions) = be_u16(input)?;
+            let (input, exception_index_table) = count(be_u16, num_exceptions as usize)(input)?;
+            (
+                input,
+                Attribute::Exceptions {
+                    number_of_exceptions: num_exceptions,
+                    exception_index_table,
+                },
+            )
+        }
+        AttributeTag::InnerClasses => {
+            let (input, num_classes) = be_u16(input)?;
+            let (input, classes) = count(inner_class, num_classes as uszie)(input)?;
+            (input, Attribute::InnerClasses { classes })
+        }
+        AttributeTag::EnclosingMethod => {
+            let (input, class_index) = be_u16(input)?;
+            let (input, method_index) = be_u16(input)?;
+            (
+                input,
+                Attribute::EnclosingMethod {
+                    class_index,
+                    method_index,
+                },
+            )
+        }
+        AttributeTag::Synthetic => (input, Attribute::Synthetic),
+        AttributeTag::Signature => {
+            let (input, signature_index) = be_u16(input)?;
+            (input, Attribute::Signature { signature_index })
+        }
+        AttributeTag::SourceFile => {
+            let (input, source_file_index) = be_u16(input)?;
+            (input, Attribute::SourceFile { source_file_index })
+        }
+        AttributeTag::SourceDebugExtension => {
+            let (input, debug_extension) = take(attribute_length)(input)?;
+            (
+                input,
+                Attribute::SourceDebugExtension {
+                    debug_extension: debug_extension.try_into().expect("nom error"),
+                },
+            )
+        }
+        AttributeTag::LineNumberTable => {
+            let (input, line_number_table_length) = be_u16(input)?;
+            let (input, line_number_table) =
+                count(line_number, line_number_table_length as usize)(input)?;
+            (input, Attribute::LineNumberTable { line_number_table })
+        }
+        AttributeTag::LocalVariableTable => {
+            let (input, local_variable_table_length) = be_u16(input)?;
+            let (input, local_variable_table) =
+                count(local_variable, local_variable_table_length as usize)(input)?;
+            (
+                input,
+                Attribute::LocalVariableTable {
+                    local_variable_table,
+                },
+            )
+        }
+        AttributeTag::LocalVariableTypeTable => {
+            let (input, local_variable_type_table_length) = be_u16(input)?;
+            let (input, local_variable_type_table) =
+                count(local_variable, local_variable_type_table_length as usize)(input)?;
+            (
+                input,
+                Attribute::LocalVariableTypeTable {
+                    local_variable_type_table,
+                },
+            )
+        }
+        AttributeTag::Deprecated => (input, Attribute::Deprecated),
+        AttributeTag::RuntimeVisibleAnnotations => {
+            let (input, num_annotations) = be_u16(input)?;
+            let (input, annotations) = count(annotation, num_annotations as usize)(input)?;
+            (input, Attribute::RuntimeVisibleAnnotations { annotations })
+        }
         AttributeTag::RuntimeInvisibleAnnotations => {}
         AttributeTag::RuntimeVisibleParameterAnnotations => {}
         AttributeTag::RuntimeInvisibleParameterAnnotations => {}
@@ -379,7 +447,22 @@ fn stack_map_frame(input: &[u8]) -> IResult<&[u8], StackMapFrame> {
             )
         }
         // full
-        255 => {}
+        255 => {
+            let (input, offset_delta) = be_u16(input)?;
+            let (input, num_locals) = be_u16(input)?;
+            let (input, locals) = count(verification_type_info, num_locals as usize)(input)?;
+            let (input, num_stack_items) = be_u16(input)?;
+            let (input, stack) = count(verification_type_info, num_stack_items as usize)(input)?;
+            (
+                input,
+                StackMapFrame::Full {
+                    tag: frame_type,
+                    offset_delta,
+                    locals,
+                    stack,
+                },
+            )
+        }
     })
 }
 
@@ -406,3 +489,65 @@ fn verification_type_info(input: &[u8]) -> IResult<&[u8], VerificationTypeInfo> 
         _ => unreachable!(),
     })
 }
+
+fn inner_class(input: &[u8]) -> IResult<&[u8], InnerClass> {
+    let (input, inner_class_info) = be_u16(input)?;
+    let (input, outer_class_info) = be_u16(input)?;
+    let (input, inner_name_index) = be_u16(input)?;
+    let (input, inner_class_access_flags) = be_u16(input)?;
+    Ok((
+        input,
+        InnerClass {
+            inner_class_info,
+            outer_class_info,
+            inner_name_index,
+            inner_class_access_flags,
+        },
+    ))
+}
+
+fn line_number(input: &[u8]) -> IResult<&[u8], LineNumber> {
+    let (input, start_pc) = be_u16(input)?;
+    let (input, line_number) = be_u16(input)?;
+    Ok((
+        input,
+        LineNumber {
+            start_pc,
+            line_number,
+        },
+    ))
+}
+
+fn local_variable(input: &[u8]) -> IResult<&[u8], LocalVariable> {
+    let (input, start_pc) = be_u16(input)?;
+    let (input, length) = be_u16(input)?;
+    let (input, name_index) = be_u16(input)?;
+    let (input, descriptor_index) = be_u16(input)?;
+    let (input, index) = be_u16(input)?;
+    Ok((
+        input,
+        LocalVariable {
+            start_pc,
+            length,
+            name_index,
+            descriptor_index,
+            index,
+        },
+    ))
+}
+
+fn annotation(input: &[u8]) -> IResult<&[u8], Annotation> {
+    let (input, type_index) = be_u16(input)?;
+    let (input, num_element_value_pairs) = be_u16(input)?;
+    let (input, element_value_pairs) =
+        count(element_value_pair, num_element_value_pairs as usize)(input)?;
+    Ok((
+        input,
+        Annotation {
+            type_index,
+            element_value_pairs,
+        },
+    ))
+}
+
+fn element_value_pair(input: &[u8]) -> IResult<&[u8], ElementValuePair> {}
