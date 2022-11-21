@@ -172,6 +172,7 @@ pub enum StackMapFrame {
         offset_delta: U2,
         stack: [VerificationTypeInfo; 1],
     },
+    Reserved(U1),
     SameLocalsStackItemExtended {
         tag: U1,
         offset_delta: U2,
@@ -236,7 +237,7 @@ pub struct LocalVariable {
 
 #[derive(Debug, Clone)]
 pub struct Annotation {
-    pub type_index: U2,
+    pub type_name: Vec<U1>,
     pub element_value_pairs: Vec<ElementValuePair>,
 }
 
@@ -287,28 +288,52 @@ impl From<u8> for ElementValueTag {
 
 #[derive(Debug, Clone)]
 pub enum ElementValue {
-    ConstValueIndex {
+    Byte {
+        index: U2,
+    },
+    Char {
+        index: U2,
+    },
+    Double {
+        index: U2,
+    },
+    Float {
+        index: U2,
+    },
+    Int {
+        index: U2,
+    },
+    Long {
+        index: U2,
+    },
+    Short {
+        index: U2,
+    },
+    Boolean {
+        index: U2,
+    },
+    String {
         index: U2,
     },
     EnumConstValue {
         type_name_index: U2,
         const_name_index: U2,
     },
-    ClassInfoIndex {
+    Class {
         index: U2,
     },
-    AnnotationValue {
-        annotation_value: Annotation,
+    Annotation {
+        annotation: Annotation,
     },
-    ArrayValue {
+    Array {
         values: Vec<ElementValue>,
     },
 }
 
 #[derive(Debug, Clone)]
 pub struct BootstrapMethod {
-    pub bootstrap_method_ref: U2,
-    pub bootstrap_arguments: Vec<U2>,
+    pub method_ref: U2,
+    pub args: Vec<U2>,
 }
 
 #[derive(Debug)]

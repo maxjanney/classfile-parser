@@ -93,7 +93,7 @@ impl From<u8> for ConstantPoolTag {
     }
 }
 
-pub fn get_class_name(constants: &[ConstantPoolType], index: usize) -> &[u8] {
+pub fn get_utf8(constants: &[ConstantPoolType], index: usize) -> &[u8] {
     match constants.get(index) {
         Some(ConstantPoolType::Utf8 { bytes }) => bytes,
         _ => unreachable!(),

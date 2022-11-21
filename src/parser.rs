@@ -6,9 +6,9 @@ use nom::{
 };
 
 use crate::{
-    constant_pool::{get_class_name, ConstantPoolTag},
-    Annotation, AttributeTag, ElementValuePair, ExceptionHandler, InnerClass, LineNumber,
-    LocalVariable, StackMapFrame, VerificationTypeInfo,
+    constant_pool::{get_utf8, ConstantPoolTag},
+    Annotation, AttributeTag, BootstrapMethod, ElementValue, ElementValuePair, ElementValueTag,
+    ExceptionHandler, InnerClass, LineNumber, LocalVariable, StackMapFrame, VerificationTypeInfo,
     {Attribute, ClassFile, ConstantPoolType, FieldInfo, Version},
 };
 
@@ -218,7 +218,7 @@ fn attribute<'a>(
 ) -> IResult<&'a [u8], Attribute> {
     let (input, attr_name_index) = be_u16(input)?;
     let (input, attribute_length) = be_u32(input)?;
-    let name_bytes = get_class_name(constant_pool, attr_name_index as usize);
+    let name_bytes = get_utf8(constant_pool, attr_name_index as usize);
     Ok(match AttributeTag::from(name_bytes) {
         AttributeTag::ConstantValue => {
             let (input, constant_value_index) = be_u16(input)?;
@@ -264,7 +264,7 @@ fn attribute<'a>(
         }
         AttributeTag::InnerClasses => {
             let (input, num_classes) = be_u16(input)?;
-            let (input, classes) = count(inner_class, num_classes as uszie)(input)?;
+            let (input, classes) = count(inner_class, num_classes as usize)(input)?;
             (input, Attribute::InnerClasses { classes })
         }
         AttributeTag::EnclosingMethod => {
@@ -327,14 +327,35 @@ fn attribute<'a>(
         AttributeTag::Deprecated => (input, Attribute::Deprecated),
         AttributeTag::RuntimeVisibleAnnotations => {
             let (input, num_annotations) = be_u16(input)?;
-            let (input, annotations) = count(annotation, num_annotations as usize)(input)?;
+            let (input, annotations) =
+                count(|i| annotation(i, constant_pool), num_annotations as usize)(input)?;
             (input, Attribute::RuntimeVisibleAnnotations { annotations })
         }
-        AttributeTag::RuntimeInvisibleAnnotations => {}
-        AttributeTag::RuntimeVisibleParameterAnnotations => {}
-        AttributeTag::RuntimeInvisibleParameterAnnotations => {}
-        AttributeTag::AnnotationDefault => {}
-        AttributeTag::BootstrapMethods => {}
+        AttributeTag::RuntimeInvisibleAnnotations => {
+            let (input, num_annotations) = be_u16(input)?;
+            let (input, annotations) =
+                count(|i| annotation(i, constant_pool), num_annotations as usize)(input)?;
+            (
+                input,
+                Attribute::RuntimeInvisibleAnnotations { annotations },
+            )
+        }
+        AttributeTag::RuntimeVisibleParameterAnnotations => {
+            todo!()
+        }
+        AttributeTag::RuntimeInvisibleParameterAnnotations => {
+            todo!()
+        }
+        AttributeTag::AnnotationDefault => {
+            let (input, default_value) = element_value(input, constant_pool)?;
+            (input, Attribute::AnnotationDefault { default_value })
+        }
+        AttributeTag::BootstrapMethods => {
+            let (input, num_bootstrap_methods) = be_u16(input)?;
+            let (input, bootstrap_methods) =
+                count(bootstrap_method, num_bootstrap_methods as usize)(input)?;
+            (input, Attribute::BootstrapMethods { bootstrap_methods })
+        }
         _ => unreachable!(),
     })
 }
@@ -397,6 +418,8 @@ fn stack_map_frame(input: &[u8]) -> IResult<&[u8], StackMapFrame> {
                 },
             )
         }
+        // reserved
+        128..=246 => (input, StackMapFrame::Reserved(frame_type)),
         // same locals stack item extended
         247 => {
             let (input, offset_delta) = be_u16(input)?;
@@ -536,18 +559,107 @@ fn local_variable(input: &[u8]) -> IResult<&[u8], LocalVariable> {
     ))
 }
 
-fn annotation(input: &[u8]) -> IResult<&[u8], Annotation> {
+fn annotation<'a>(
+    input: &'a [u8],
+    constant_pool: &[ConstantPoolType],
+) -> IResult<&'a [u8], Annotation> {
     let (input, type_index) = be_u16(input)?;
     let (input, num_element_value_pairs) = be_u16(input)?;
     let (input, element_value_pairs) =
         count(element_value_pair, num_element_value_pairs as usize)(input)?;
+    let type_name = get_utf8(constant_pool, type_index as usize);
     Ok((
         input,
         Annotation {
-            type_index,
+            type_name: type_name.to_vec(),
             element_value_pairs,
         },
     ))
 }
 
-fn element_value_pair(input: &[u8]) -> IResult<&[u8], ElementValuePair> {}
+fn element_value_pair(input: &[u8]) -> IResult<&[u8], ElementValuePair> {
+    todo!()
+}
+
+fn element_value<'a>(
+    input: &'a [u8],
+    constant_pool: &[ConstantPoolType],
+) -> IResult<&'a [u8], ElementValue> {
+    let (input, tag) = element_value_tag(input)?;
+    Ok(match tag {
+        ElementValueTag::Byte => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Byte { index })
+        }
+        ElementValueTag::Char => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Char { index })
+        }
+        ElementValueTag::Double => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Double { index })
+        }
+        ElementValueTag::Float => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Float { index })
+        }
+        ElementValueTag::Int => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Int { index })
+        }
+        ElementValueTag::Long => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Long { index })
+        }
+        ElementValueTag::Short => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Short { index })
+        }
+        ElementValueTag::Boolean => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Boolean { index })
+        }
+        ElementValueTag::String => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::String { index })
+        }
+        ElementValueTag::EnumConstant => {
+            let (input, type_name_index) = be_u16(input)?;
+            let (input, const_name_index) = be_u16(input)?;
+            (
+                input,
+                ElementValue::EnumConstValue {
+                    type_name_index,
+                    const_name_index,
+                },
+            )
+        }
+        ElementValueTag::Class => {
+            let (input, index) = be_u16(input)?;
+            (input, ElementValue::Class { index })
+        }
+        ElementValueTag::Annotation => {
+            let (input, annotation) = annotation(input, constant_pool)?;
+            (input, ElementValue::Annotation { annotation })
+        }
+        ElementValueTag::Array => {
+            let (input, num_values) = be_u16(input)?;
+            let (input, values) =
+                count(|i| element_value(i, constant_pool), num_values as usize)(input)?;
+            (input, ElementValue::Array { values })
+        }
+        _ => unreachable!(),
+    })
+}
+
+fn element_value_tag(input: &[u8]) -> IResult<&[u8], ElementValueTag> {
+    let (input, tag) = be_u8(input)?;
+    Ok((input, ElementValueTag::from(tag)))
+}
+
+fn bootstrap_method(input: &[u8]) -> IResult<&[u8], BootstrapMethod> {
+    let (input, method_ref) = be_u16(input)?;
+    let (input, num_args) = be_u16(input)?;
+    let (input, args) = count(be_u16, num_args as usize)(input)?;
+    Ok((input, BootstrapMethod { method_ref, args }))
+}
