@@ -148,7 +148,6 @@ fn constant_type(input: &[u8]) -> IResult<&[u8], ConstantPoolType> {
                 },
             )
         }
-        _ => todo!(),
     })
 }
 

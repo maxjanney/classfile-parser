@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub mod constant_pool;
 pub mod parser;
 
@@ -56,7 +58,6 @@ pub enum AttributeTag {
     RuntimeInvisibleParameterAnnotations,
     AnnotationDefault,
     BootstrapMethods,
-    Unknown,
 }
 
 impl From<&[u8]> for AttributeTag {
@@ -82,7 +83,7 @@ impl From<&[u8]> for AttributeTag {
             b"RuntimeInvisibleParameterAnnotations" => Self::RuntimeInvisibleParameterAnnotations,
             b"AnnotationDefault" => Self::AnnotationDefault,
             b"BootstrapMethods" => Self::BootstrapMethods,
-            _ => Self::Unknown,
+            _ => unreachable!(),
         }
     }
 }
@@ -262,7 +263,6 @@ pub enum ElementValueTag {
     Class,
     Annotation,
     Array,
-    Unknown,
 }
 
 impl From<u8> for ElementValueTag {
@@ -281,7 +281,7 @@ impl From<u8> for ElementValueTag {
             b'c' => Self::Class,
             b'@' => Self::Annotation,
             b'[' => Self::Array,
-            _ => Self::Unknown,
+            _ => unreachable!(),
         }
     }
 }

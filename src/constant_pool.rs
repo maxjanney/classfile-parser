@@ -68,7 +68,6 @@ pub enum ConstantPoolTag {
     MethodHandle,
     MethodType,
     InvokeDynamic,
-    Unknown,
 }
 
 impl From<u8> for ConstantPoolTag {
@@ -88,7 +87,7 @@ impl From<u8> for ConstantPoolTag {
             15 => Self::MethodHandle,
             16 => Self::MethodType,
             18 => Self::InvokeDynamic,
-            _ => Self::Unknown,
+            _ => unreachable!(),
         }
     }
 }
