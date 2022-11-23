@@ -98,7 +98,7 @@ pub enum Attribute {
         max_locals: U2,
         code: Vec<U1>,
         exception_table: Vec<ExceptionHandler>,
-        attributes: Vec<AttributeTag>,
+        attributes: Vec<Attribute>,
     },
     StackMapTable {
         entries: Vec<StackMapFrame>,

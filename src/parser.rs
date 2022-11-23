@@ -234,7 +234,7 @@ fn attribute<'a>(
             let (input, code_len) = be_u32(input)?;
             let (input, code) = take(code_len as usize)(input)?;
             let (input, exception_table) = exception_table(input)?;
-            let (input, attribute_tags) = attribute_tags(input)?;
+            let (input, attributes) = attributes(input, constant_pool)?;
             (
                 input,
                 Attribute::Code {
@@ -242,7 +242,7 @@ fn attribute<'a>(
                     max_locals,
                     code: code.to_vec(),
                     exception_table,
-                    attributes: attribute_tags,
+                    attributes,
                 },
             )
         }
@@ -379,12 +379,6 @@ fn exception_handler(input: &[u8]) -> IResult<&[u8], ExceptionHandler> {
             catch_type,
         },
     ))
-}
-
-fn attribute_tags(input: &[u8]) -> IResult<&[u8], Vec<AttributeTag>> {
-    let (input, attrs_count) = be_u16(input)?;
-    let (input, attributes) = take(attrs_count as usize)(input)?;
-    todo!()
 }
 
 fn stack_map_table(input: &[u8]) -> IResult<&[u8], Vec<StackMapFrame>> {
