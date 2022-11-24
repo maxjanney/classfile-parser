@@ -558,8 +558,10 @@ fn annotation<'a>(
 ) -> IResult<&'a [u8], Annotation> {
     let (input, type_index) = be_u16(input)?;
     let (input, num_element_value_pairs) = be_u16(input)?;
-    let (input, element_value_pairs) =
-        count(element_value_pair, num_element_value_pairs as usize)(input)?;
+    let (input, element_value_pairs) = count(
+        |i| element_value_pair(i, constant_pool),
+        num_element_value_pairs as usize,
+    )(input)?;
     let type_name = get_utf8(constant_pool, type_index as usize);
     Ok((
         input,
@@ -570,8 +572,19 @@ fn annotation<'a>(
     ))
 }
 
-fn element_value_pair(input: &[u8]) -> IResult<&[u8], ElementValuePair> {
-    todo!()
+fn element_value_pair<'a>(
+    input: &'a [u8],
+    constant_pool: &[ConstantPoolType],
+) -> IResult<&'a [u8], ElementValuePair> {
+    let (input, index) = be_u16(input)?;
+    let (input, value) = element_value(input, constant_pool)?;
+    Ok((
+        input,
+        ElementValuePair {
+            element_name_index: index,
+            value,
+        },
+    ))
 }
 
 fn element_value<'a>(
